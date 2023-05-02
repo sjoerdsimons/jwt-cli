@@ -17,7 +17,7 @@ pub enum OutputFormat {
     Json,
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct TokenOutput {
     pub header: Header,
     pub payload: Payload,
@@ -104,18 +104,7 @@ pub fn decoding_key_from_secret(alg: &Algorithm, secret_string: &str) -> JWTResu
     }
 }
 
-pub fn decode_token(
-    arguments: &DecodeArgs,
-) -> (
-    JWTResult<TokenData<Payload>>,
-    JWTResult<TokenData<Payload>>,
-    OutputFormat,
-) {
-    let algorithm = translate_algorithm(&arguments.algorithm);
-    let secret = match arguments.secret.len() {
-        0 => None,
-        _ => Some(decoding_key_from_secret(&algorithm, &arguments.secret)),
-    };
+pub fn decode_token(arguments: &DecodeArgs) -> JWTResult<TokenData<Payload>> {
     let jwt = match arguments.jwt.as_str() {
         "-" => {
             let mut buffer = String::new();
@@ -131,8 +120,8 @@ pub fn decode_token(
     .trim()
     .to_owned();
 
+    let algorithm = translate_algorithm(&arguments.algorithm);
     let mut secret_validator = Validation::new(algorithm);
-
     secret_validator.leeway = 1000;
 
     if arguments.ignore_exp {
@@ -142,14 +131,16 @@ pub fn decode_token(
         secret_validator.validate_exp = false;
     }
 
-    let mut insecure_validator = secret_validator.clone();
-    let insecure_decoding_key = DecodingKey::from_secret("".as_ref());
+    let secret_key = if arguments.secret.is_empty() {
+        secret_validator.insecure_disable_signature_validation();
+        secret_validator.required_spec_claims = HashSet::new();
+        secret_validator.validate_exp = false;
+        DecodingKey::from_secret("".as_ref())
+    } else {
+        decoding_key_from_secret(&algorithm, &arguments.secret)?
+    };
 
-    insecure_validator.insecure_disable_signature_validation();
-    insecure_validator.required_spec_claims = HashSet::new();
-    insecure_validator.validate_exp = false;
-
-    let token_data = decode::<Payload>(&jwt, &insecure_decoding_key, &insecure_validator)
+    decode::<Payload>(&jwt, &secret_key, &secret_validator)
         .map_err(jsonwebtoken::errors::Error::into)
         .map(|mut token| {
             if arguments.time_format.is_some() {
@@ -159,37 +150,34 @@ pub fn decode_token(
             }
 
             token
-        });
-
-    (
-        match secret {
-            Some(Ok(secret_key)) => decode::<Payload>(&jwt, &secret_key, &secret_validator)
-                .map_err(jsonwebtoken::errors::Error::into),
-            Some(Err(err)) => Err(err),
-            None => decode::<Payload>(&jwt, &insecure_decoding_key, &insecure_validator)
-                .map_err(jsonwebtoken::errors::Error::into),
-        },
-        token_data,
-        if arguments.json {
-            OutputFormat::Json
-        } else {
-            OutputFormat::Text
-        },
-    )
+        })
 }
 
 pub fn print_decoded_token(
-    validated_token: JWTResult<TokenData<Payload>>,
     token_data: JWTResult<TokenData<Payload>>,
     format: OutputFormat,
     output_path: &Option<PathBuf>,
 ) -> JWTResult<()> {
-    if let Err(err) = &validated_token {
-        match err {
-            JWTError::External(ext_err) => {
-                match ext_err.kind() {
+    match token_data {
+        Ok(token) => {
+            if let Some(path) = output_path {
+                let json = to_string_pretty(&TokenOutput::new(token)).unwrap();
+                write_file(path, json.as_bytes());
+                println!("Wrote jwt to file {}", path.display());
+            } else if format == OutputFormat::Json {
+                println!("{}", to_string_pretty(&TokenOutput::new(token)).unwrap());
+            } else {
+                bunt::println!("\n{$bold}Token header\n------------{/$}");
+                println!("{}\n", to_string_pretty(&token.header).unwrap());
+                bunt::println!("{$bold}Token claims\n------------{/$}");
+                println!("{}", to_string_pretty(&token.claims).unwrap());
+            }
+            Ok(())
+        }
+        Err(JWTError::External(ext_err)) => {
+            match ext_err.kind() {
                     ErrorKind::InvalidToken => {
-                        bunt::println!("{$red+bold}The JWT provided is invalid{/$}")
+                        bunt::println!("{$red+bold}The JWT provided is invalid {/$}")
                     }
                     ErrorKind::InvalidSignature => {
                         bunt::eprintln!("{$red+bold}The JWT provided has an invalid signature{/$}")
@@ -228,32 +216,14 @@ pub fn print_decoded_token(
                     ),
                     _ => bunt::eprintln!(
                         "{$red+bold}The JWT provided is invalid because{/$} {:?}",
-                        err
+                        ext_err
                     ),
                 };
-            }
-            JWTError::Internal(int_err) => bunt::eprintln!("{$red+bold}{:?}{/$}", int_err),
-        };
-        return Err(validated_token.err().unwrap());
+            Err(JWTError::External(ext_err))
+        }
+        Err(JWTError::Internal(int_err)) => {
+            bunt::eprintln!("{$red+bold}{:?}{/$}", int_err);
+            Err(JWTError::Internal(int_err))
+        }
     }
-
-    match (output_path.as_ref(), format, token_data) {
-        (Some(path), _, Ok(token)) => {
-            let json = to_string_pretty(&TokenOutput::new(token)).unwrap();
-            write_file(path, json.as_bytes());
-            println!("Wrote jwt to file {}", path.display());
-        }
-        (None, OutputFormat::Json, Ok(token)) => {
-            println!("{}", to_string_pretty(&TokenOutput::new(token)).unwrap());
-        }
-        (None, _, Ok(token)) => {
-            bunt::println!("\n{$bold}Token header\n------------{/$}");
-            println!("{}\n", to_string_pretty(&token.header).unwrap());
-            bunt::println!("{$bold}Token claims\n------------{/$}");
-            println!("{}", to_string_pretty(&token.claims).unwrap());
-        }
-        (_, _, Err(err)) => return Err(err),
-    }
-
-    Ok(())
 }
