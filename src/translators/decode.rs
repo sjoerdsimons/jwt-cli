@@ -1,10 +1,10 @@
-use crate::cli_config::{translate_algorithm, DecodeArgs};
+use crate::cli_config::DecodeArgs;
 use crate::translators::Payload;
 use crate::utils::{slurp_file, write_file, JWTError, JWTResult};
 use base64::engine::general_purpose::STANDARD as base64_engine;
 use base64::Engine as _;
 use jsonwebtoken::errors::ErrorKind;
-use jsonwebtoken::{decode, Algorithm, DecodingKey, Header, TokenData, Validation};
+use jsonwebtoken::{decode, decode_header, Algorithm, DecodingKey, Header, TokenData, Validation};
 use serde_derive::{Deserialize, Serialize};
 use serde_json::to_string_pretty;
 use std::collections::HashSet;
@@ -32,7 +32,7 @@ impl TokenOutput {
     }
 }
 
-pub fn decoding_key_from_secret(alg: &Algorithm, secret_string: &str) -> JWTResult<DecodingKey> {
+pub fn decoding_key_from_secret(alg: Algorithm, secret_string: &str) -> JWTResult<DecodingKey> {
     match alg {
         Algorithm::HS256 | Algorithm::HS384 | Algorithm::HS512 => {
             if secret_string.starts_with('@') {
@@ -120,7 +120,17 @@ pub fn decode_token(arguments: &DecodeArgs) -> JWTResult<TokenData<Payload>> {
     .trim()
     .to_owned();
 
-    let algorithm = translate_algorithm(&arguments.algorithm);
+    let header = decode_header(&jwt)?;
+    let algorithm = header.alg;
+    if let Some(alg) = arguments.algorithm {
+        if algorithm != alg.into() {
+            return Err(JWTError::Internal(format!(
+                "Mismatched algorithm, token uses {:?}",
+                header.alg
+            )));
+        }
+    }
+
     let mut secret_validator = Validation::new(algorithm);
     secret_validator.leeway = 1000;
 
@@ -137,7 +147,7 @@ pub fn decode_token(arguments: &DecodeArgs) -> JWTResult<TokenData<Payload>> {
         secret_validator.validate_exp = false;
         DecodingKey::from_secret("".as_ref())
     } else {
-        decoding_key_from_secret(&algorithm, &arguments.secret)?
+        decoding_key_from_secret(algorithm, &arguments.secret)?
     };
 
     decode::<Payload>(&jwt, &secret_key, &secret_validator)

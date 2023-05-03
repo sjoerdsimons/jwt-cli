@@ -1,4 +1,4 @@
-use crate::cli_config::{translate_algorithm, EncodeArgs};
+use crate::cli_config::EncodeArgs;
 use crate::translators::{Payload, PayloadItem};
 use crate::utils::{slurp_file, write_file, JWTError, JWTResult};
 use atty::Stream;
@@ -91,7 +91,7 @@ pub fn encoding_key_from_secret(alg: &Algorithm, secret_string: &str) -> JWTResu
 }
 
 pub fn encode_token(arguments: &EncodeArgs) -> JWTResult<String> {
-    let algorithm = translate_algorithm(&arguments.algorithm);
+    let algorithm = arguments.algorithm.into();
     let header = create_header(algorithm, arguments.kid.as_ref());
     let custom_payloads = arguments.payload.clone();
     let custom_payload = arguments

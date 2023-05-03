@@ -113,9 +113,8 @@ pub struct DecodeArgs {
     /// The algorithm used to sign the JWT
     #[clap(long = "alg", short = 'A')]
     #[clap(value_enum)]
-    #[clap(default_value = "HS256")]
     #[clap(value_parser)]
-    pub algorithm: SupportedAlgorithms,
+    pub algorithm: Option<SupportedAlgorithms>,
 
     /// Display unix timestamps as ISO 8601 dates [default: UTC] [possible values: UTC, Local, Offset (e.g. -02:00)]
     #[clap(long = "date")]
@@ -150,7 +149,7 @@ pub struct DecodeArgs {
 }
 
 #[allow(clippy::upper_case_acronyms)]
-#[derive(Debug, Clone, PartialEq, Eq, ValueEnum)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, ValueEnum)]
 #[clap(rename_all = "UPPERCASE")]
 pub enum SupportedAlgorithms {
     HS256,
@@ -212,20 +211,22 @@ fn time_format(arg: &str) -> Result<TimeFormat, String> {
     }
 }
 
-pub fn translate_algorithm(alg: &SupportedAlgorithms) -> Algorithm {
-    match alg {
-        SupportedAlgorithms::HS256 => Algorithm::HS256,
-        SupportedAlgorithms::HS384 => Algorithm::HS384,
-        SupportedAlgorithms::HS512 => Algorithm::HS512,
-        SupportedAlgorithms::RS256 => Algorithm::RS256,
-        SupportedAlgorithms::RS384 => Algorithm::RS384,
-        SupportedAlgorithms::RS512 => Algorithm::RS512,
-        SupportedAlgorithms::PS256 => Algorithm::PS256,
-        SupportedAlgorithms::PS384 => Algorithm::PS384,
-        SupportedAlgorithms::PS512 => Algorithm::PS512,
-        SupportedAlgorithms::ES256 => Algorithm::ES256,
-        SupportedAlgorithms::ES384 => Algorithm::ES384,
-        SupportedAlgorithms::EdDSA => Algorithm::EdDSA,
+impl From<SupportedAlgorithms> for Algorithm {
+    fn from(f: SupportedAlgorithms) -> Self {
+        match f {
+            SupportedAlgorithms::HS256 => Algorithm::HS256,
+            SupportedAlgorithms::HS384 => Algorithm::HS384,
+            SupportedAlgorithms::HS512 => Algorithm::HS512,
+            SupportedAlgorithms::RS256 => Algorithm::RS256,
+            SupportedAlgorithms::RS384 => Algorithm::RS384,
+            SupportedAlgorithms::RS512 => Algorithm::RS512,
+            SupportedAlgorithms::PS256 => Algorithm::PS256,
+            SupportedAlgorithms::PS384 => Algorithm::PS384,
+            SupportedAlgorithms::PS512 => Algorithm::PS512,
+            SupportedAlgorithms::ES256 => Algorithm::ES256,
+            SupportedAlgorithms::ES384 => Algorithm::ES384,
+            SupportedAlgorithms::EdDSA => Algorithm::EdDSA,
+        }
     }
 }
 
