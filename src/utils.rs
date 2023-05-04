@@ -1,4 +1,5 @@
 use std::fmt;
+use std::fmt::Display;
 use std::fs;
 use std::path::Path;
 
@@ -25,8 +26,12 @@ impl fmt::Display for JWTError {
     }
 }
 
-pub fn slurp_file(file_name: &str) -> Vec<u8> {
-    fs::read(file_name).unwrap_or_else(|_| panic!("Unable to read file {file_name}"))
+pub fn slurp_file<P>(file_name: P) -> Vec<u8>
+where
+    P: AsRef<Path>,
+{
+    fs::read(&file_name)
+        .unwrap_or_else(|_| panic!("Unable to read file {}", file_name.as_ref().display()))
 }
 
 pub fn write_file(path: &Path, content: &[u8]) {

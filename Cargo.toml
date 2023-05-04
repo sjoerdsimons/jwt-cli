@@ -23,6 +23,10 @@ chrono = "0.4"
 parse_duration = "2.1.1"
 atty = "0.2"
 base64 = "0.21.0"
+pkcs8 = { version = "0.10.2", features = ["pem", "std"] }
+rsa = "0.9.1"
+ecdsa = { version = "0.16.6", features = ["pem"] }
+ed25519 = { version = "2.2.1", features = ["pem"] }
 
 [dev-dependencies]
 tempdir = "0.3.7"

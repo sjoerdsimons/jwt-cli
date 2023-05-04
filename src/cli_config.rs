@@ -22,6 +22,9 @@ pub enum Commands {
 
     /// Decode a JWT
     Decode(DecodeArgs),
+
+    /// Convert to JWK
+    JWK(JwkArgs),
 }
 
 #[derive(Debug, Clone, Parser)]
@@ -148,6 +151,16 @@ pub struct DecodeArgs {
     pub output_path: Option<PathBuf>,
 }
 
+#[derive(Debug, Clone, Parser)]
+pub struct JwkArgs {
+    /// The path of the key from
+    pub in_: PathBuf,
+    /// The path of the file to write the result to (suppresses default standard output, implies JSON format)
+    #[clap(long = "out", short = 'o')]
+    #[clap(value_parser)]
+    pub output_path: Option<PathBuf>,
+}
+
 #[allow(clippy::upper_case_acronyms)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, ValueEnum)]
 #[clap(rename_all = "UPPERCASE")]
@@ -214,17 +227,23 @@ fn time_format(arg: &str) -> Result<TimeFormat, String> {
 impl From<SupportedAlgorithms> for Algorithm {
     fn from(f: SupportedAlgorithms) -> Self {
         match f {
+            // hmack
             SupportedAlgorithms::HS256 => Algorithm::HS256,
             SupportedAlgorithms::HS384 => Algorithm::HS384,
             SupportedAlgorithms::HS512 => Algorithm::HS512,
+            // RSA
             SupportedAlgorithms::RS256 => Algorithm::RS256,
             SupportedAlgorithms::RS384 => Algorithm::RS384,
             SupportedAlgorithms::RS512 => Algorithm::RS512,
+            //RSASSA-PSS 
             SupportedAlgorithms::PS256 => Algorithm::PS256,
             SupportedAlgorithms::PS384 => Algorithm::PS384,
             SupportedAlgorithms::PS512 => Algorithm::PS512,
+            //ECDSA P-256 
             SupportedAlgorithms::ES256 => Algorithm::ES256,
+            //ECDSA P-384 
             SupportedAlgorithms::ES384 => Algorithm::ES384,
+            // EdDSA over curve ed25519 - Ed25519
             SupportedAlgorithms::EdDSA => Algorithm::EdDSA,
         }
     }
