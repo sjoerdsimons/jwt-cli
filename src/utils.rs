@@ -1,5 +1,5 @@
 use std::fmt;
-use std::fmt::Display;
+
 use std::fs;
 use std::path::Path;
 

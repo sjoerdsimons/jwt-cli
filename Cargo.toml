@@ -26,7 +26,12 @@ base64 = "0.21.0"
 pkcs8 = { version = "0.10.2", features = ["pem", "std"] }
 rsa = "0.9.1"
 ecdsa = { version = "0.16.6", features = ["pem"] }
-ed25519 = { version = "2.2.1", features = ["pem"] }
+ed25519 = { version = "2.2.1", features = ["pem", "pkcs8"] }
+p256 = { version = "0.13.2", features = ["jwk"] }
+elliptic-curve = { version = "0.13.4", features = ["jwk"] }
+p384 = { version = "0.13.0", features = ["jwk"] }
+ed25519-dalek = "1.0.1"
+p521 = { version = "0.13.0", features = ["wip-arithmetic-do-not-use"] }
 
 [dev-dependencies]
 tempdir = "0.3.7"
