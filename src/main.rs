@@ -59,6 +59,7 @@ fn main() {
         }
         Commands::JWK(arguments) => {
             let (_label, d) = SecretDocument::read_pem_file(&arguments.in_).unwrap();
+            println!("{_label}");
             let p = PrivateKeyInfo::try_from(d.as_bytes()).unwrap();
             let params = match p.algorithm {
                 rsa::pkcs1::ALGORITHM_ID => {
@@ -134,15 +135,6 @@ fn main() {
                 algorithm: params,
             };
             println!("JWK: {}", serde_json::to_string_pretty(&jwk).unwrap());
-
-            //let key = slurp_file(&arguments.in_);
-            //let pem = crate::pem::decoder::PemEncodedKey::new(&key).unwrap();
-            /*
-            let decoding = DecodingKey::from_rsa_pem(&key)
-                //.map_err(jsonwebtoken::errors::Error::into)
-                .unwrap();
-            */
-            //println!("{}", serde_json::to_string(&decoding).unwrap());
         }
     };
 }
